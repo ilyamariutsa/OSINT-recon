@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSINT Recon</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+:root{
+  --bg:#090d16; --side:#0c111c; --panel:#111827; --panel2:#0d1320; --hover:#151e2e;
+  --border:#1d2636; --line:#151d2b; --text:#e6edf6; --muted:#7f8ba0; --dim:#5b667a;
+  --accent:#38bdf8; --accent-d:#0b3a52; --ok:#34d399; --bad:#f87171; --warn:#fbbf24;
+  --crit:#ef4444; --high:#f97316; --med:#eab308; --low:#38bdf8; --info:#64748b;
+  --mono:"Cascadia Mono",ui-monospace,Consolas,monospace;
+  --r:12px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%;background:var(--bg)}
+body{margin:0;color:var(--text);font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;overflow:hidden}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#1f2a3c;border-radius:10px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
+button{cursor:pointer;border:0;border-radius:9px;font:inherit;font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+input,select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+.mono{font-family:var(--mono);font-size:12.5px}
+
+/* ---------- сайдбар ---------- */
+aside{width:248px;flex:none;background:var(--side);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%}
+.brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px}
+.brand img{width:30px;height:30px}
+.brand b{font-size:16px;letter-spacing:.2px}
+.brand b span{color:var(--accent)}
+.newbtn{margin:0 12px 10px;background:var(--accent);color:#03212f;padding:9px 12px;text-align:left}
+.newbtn:hover{filter:brightness(1.08)}
+.side-h{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;padding:10px 18px 6px}
+.hist{flex:1;overflow:auto;padding:0 8px 8px}
+.hi{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;position:relative}
+.hi:hover{background:var(--hover)}
+.hi.on{background:#13213a}
+.hi .nm{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hi .mt{font-size:11.5px;color:var(--muted)}
+.hi .tx{flex:1;min-width:0}
+.hi .del{opacity:0;background:none;color:var(--muted);font-size:16px;padding:0 4px;font-weight:400}
+.hi:hover .del{opacity:1}
+.hi .del:hover{color:var(--bad)}
+.hist-empty{color:var(--dim);font-size:12.5px;padding:6px 12px}
+.side-foot{border-top:1px solid var(--border);padding:8px}
+.side-btn{width:100%;background:none;color:var(--muted);text-align:left;padding:8px 10px;font-weight:500}
+.side-btn:hover{background:var(--hover);color:var(--text)}
+
+/* ---------- основная область ---------- */
+.main{flex:1;overflow:auto;height:100%}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 24px 40px}
+.search{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:8px}
+.search input{border:0;background:transparent;font-size:15px;padding:8px 10px}
+.search input:focus{border:0}
+#domain{flex:1;min-width:180px;font-family:var(--mono)}
+#inn{width:230px;border-left:1px solid var(--border)!important;border-radius:0}
+.go{background:var(--accent);color:#03212f;padding:9px 20px}
+.toggles{display:flex;gap:8px;margin:10px 2px 0;align-items:center;flex-wrap:wrap}
+.tg{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;padding:4px 10px 4px 4px;border-radius:99px;border:1px solid var(--border)}
+.tg input{display:none}
+.tg i{width:28px;height:16px;border-radius:99px;background:#243045;position:relative;transition:.15s}
+.tg i:after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:#8b98ab;top:2px;left:2px;transition:.15s}
+.tg input:checked+i{background:var(--accent-d)}
+.tg input:checked+i:after{left:14px;background:var(--accent)}
+.tg:has(input:checked){color:var(--text)}
+.warn-mini{font-size:12px;color:var(--warn)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:99px;padding:2px;background:var(--panel2)}
+.seg button{background:none;color:var(--muted);font-weight:500;font-size:12.5px;padding:3px 12px;border-radius:99px}
+.seg button span{color:var(--dim);font-size:11px;margin-left:2px}
+.seg button.on{background:var(--accent-d);color:var(--text)}
+.seg button.on span{color:#7dd3fc}
+.live{display:flex;gap:16px;align-items:baseline;margin-top:2px}
+.live b{font-size:20px;font-weight:650}
+.live span{color:var(--muted);font-size:12px;margin-left:4px}
+.recent-hosts{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px;min-height:22px}
+.recent-hosts .b{font-family:var(--mono);font-size:11.5px;animation:fadein .4s}
+@keyframes fadein{from{opacity:0;transform:translateY(-2px)}to{opacity:1}}
+.err{color:var(--bad);font-size:13px;margin:8px 4px 0}
+
+.empty-state{text-align:center;color:var(--muted);padding:90px 20px}
+.empty-state img{width:64px;height:64px;opacity:.9}
+.empty-state h2{color:var(--text);font-size:20px;margin:14px 0 4px;font-weight:600}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.sec{margin-top:18px}
+h3{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:22px 0 10px}
+h3:first-child{margin-top:0}
+
+/* прогресс */
+.prog-top{display:flex;align-items:center;gap:12px}
+.prog-top h2{margin:0;font:600 17px var(--mono)}
+.prog-top .st{color:var(--muted);font-size:13px;flex:1}
+.stop{background:#2a1215;color:#fca5a5;border:1px solid #5b1e22;padding:6px 12px;font-size:12.5px}
+.bar{height:5px;background:#1a2333;border-radius:99px;margin:12px 0 14px;overflow:hidden}
+.bar div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--ok));transition:width .4s}
+.pg-h{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px}
+.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+.step{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12.5px}
+.step .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step .c{color:var(--muted);font-size:12px}
+.step.running{border-color:#1e4a63}
+.step.skipped{opacity:.4}
+.ic{width:14px;text-align:center;font-size:12px}
+.ic.ok{color:var(--ok)}.ic.error{color:var(--bad)}.ic.pending,.ic.skipped{color:var(--dim)}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* результат */
+.rhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0 4px}
+.rhead h1{margin:0;font:600 22px var(--mono)}
+.rmeta{color:var(--muted);font-size:12.5px}
+.risk{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.4px}
+.risk.critical{background:#3b0d0d;color:#fca5a5}.risk.high{background:#3a1a06;color:#fdba74}.risk.medium{background:#332a05;color:#fde047}.risk.low{background:#082a3d;color:#7dd3fc}.risk.info{background:#1a2233;color:#94a3b8}
+.sp{flex:1}
+.btn{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:7px 13px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:#2d3b52;background:var(--hover);text-decoration:none}
+.btn.pri{background:var(--accent);color:#03212f;border-color:var(--accent)}
+.menu{position:relative}
+.menu summary{list-style:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu-list{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:200px;z-index:30;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.menu-list a{display:block;color:var(--text);padding:7px 10px;border-radius:7px;font-size:13px}
+.menu-list a:hover{background:var(--hover);text-decoration:none}
+.menu-list hr{border:0;border-top:1px solid var(--border);margin:5px 4px}
+.partial{background:#2a1f0a;border:1px solid #5c4a12;color:#fbbf24;border-radius:9px;padding:7px 12px;font-size:12.5px;margin-top:10px}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:14px 0 18px;position:sticky;top:0;background:var(--bg);z-index:15;overflow-x:auto}
+.tabs button{background:none;color:var(--muted);padding:10px 12px;border-radius:0;font-weight:500;border-bottom:2px solid transparent;white-space:nowrap;font-size:13.5px}
+.tabs button:hover{color:var(--text)}
+.tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
+.tabs .k{font-size:11px;color:var(--dim);margin-left:5px}
+.tab{display:none}.tab.on{display:block}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.kpi .v{font-size:24px;font-weight:650;line-height:1.2}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi.bad .v{color:var(--high)}
+.sevbar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:#1a2333;margin:4px 0 10px}
+.sevbar div{height:100%}
+.legend{display:flex;gap:6px;flex-wrap:wrap}
+.lg{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);padding:4px 10px;border-radius:99px;border:1px solid var(--border);background:var(--panel);cursor:pointer}
+.lg b{color:var(--text);font-weight:600}
+.lg.on{border-color:var(--accent);color:var(--text)}
+.d{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;background:var(--info)}
+.d.critical{background:var(--crit)}.d.high{background:var(--high)}.d.medium{background:var(--med)}.d.low{background:var(--low)}.d.info{background:var(--info)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* находки */
+.fl{border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.fi{border-bottom:1px solid var(--line)}
+.fi:last-child{border-bottom:0}
+.fi summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.fi summary::-webkit-details-marker{display:none}
+.fi summary:hover{background:var(--hover)}
+.fi .t{flex:1;font-weight:500}
+.fi .cat{color:var(--dim);font-size:12px}
+.fi .cnt{color:var(--muted);font-size:12px;min-width:32px;text-align:right}
+.fi .chev{color:var(--dim);transition:.15s}
+.fi[open] .chev{transform:rotate(90deg)}
+.fi .body{padding:0 14px 12px 32px;font-size:13px;color:#c7d1df}
+.fi .rec{color:var(--ok);margin-top:4px}
+.fi ul{margin:8px 0 0;padding-left:16px;font:12px/1.55 var(--mono);color:#b8c3d3;max-height:300px;overflow:auto}
+.pill{font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;color:#0a0f18;flex:none}
+.pill.critical{background:var(--crit);color:#fff}.pill.high{background:var(--high)}.pill.medium{background:var(--med)}.pill.low{background:var(--low)}.pill.info{background:#334155;color:#cbd5e1}
+
+/* таблицы */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.toolbar input[type=text]{width:300px;padding:7px 11px;font-size:13px}
+.toolbar select{padding:6px 10px;font-size:13px}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer}
+.chk input{accent-color:var(--accent)}
+.toolbar .cnt{margin-left:auto;color:var(--dim);font-size:12px}
+.tw{overflow:auto;border:1px solid var(--border);border-radius:var(--r);max-height:calc(100vh - 230px);background:var(--panel)}
+.tw.short{max-height:420px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:#0f1624;text-align:left;padding:8px 12px;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap;z-index:1}
+td{padding:7px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--hover)}
+td.num{text-align:right}
+.empty{color:var(--dim);padding:16px;text-align:center}
+.b{display:inline-block;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:0 6px;font-size:11px;margin:1px 3px 1px 0;white-space:nowrap;background:#0f1726}
+.b.ok{color:#6ee7b7;border-color:#14532d}.b.bad{color:#fca5a5;border-color:#7f1d1d}.b.warn{color:#fcd34d;border-color:#713f12}
+.b.rf{color:#7dd3fc;border-color:#164e63}.b.cdn{color:#c4b5fd;border-color:#4c1d95}
+.b.p-critical{background:#7f1d1d;color:#fff;border-color:#7f1d1d}.b.p-high{color:#fdba74;border-color:#9a3412}.b.p-medium{color:#fde047;border-color:#854d0e}
+.b.t-admin{color:#fda4af;border-color:#881337}.b.t-remote{color:#fdba74;border-color:#9a3412}.b.t-devops{color:#c4b5fd;border-color:#5b21b6}.b.t-mail{color:#86efac;border-color:#166534}.b.t-cms{color:#7dd3fc;border-color:#075985}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+
+.kv{display:grid;grid-template-columns:190px 1fr;background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.kv>div{padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;word-break:break-word}
+.kv>div:nth-child(odd){color:var(--muted)}
+.kv>div:nth-last-child(-n+2){border-bottom:0}
+.links{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.links a{font-size:12px;border:1px solid var(--border);border-radius:7px;padding:3px 9px;background:var(--panel)}
+.links a:hover{border-color:var(--accent);text-decoration:none}
+.note-box{border:1px solid var(--border);background:var(--panel2);border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--muted);margin-top:10px}
+.mini{background:var(--panel2);color:var(--accent);border:1px solid var(--border);padding:2px 8px;font-size:11.5px;border-radius:6px}
+.mini:hover{border-color:var(--accent)}
+
+/* модальное окно */
+.modal-bg{position:fixed;inset:0;background:rgba(3,6,12,.72);display:flex;align-items:flex-start;justify-content:center;z-index:50;padding:48px 16px;overflow:auto}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;width:min(620px,100%);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.mh{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.mh h2{margin:0;font-size:16px;flex:1}
+.mb{padding:6px 18px 14px}
+.mf{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--border)}
+.x{background:none;color:var(--muted);font-size:18px;padding:2px 8px;font-weight:400}
+.x:hover{color:var(--text)}
+.kr{display:grid;grid-template-columns:150px 1fr 70px;gap:10px;align-items:center;padding:6px 0}
+.kr .lb{font-size:13px}
+.kr .lb small{display:block;color:var(--dim);font-size:11px}
+.kr input{padding:7px 10px;font:12.5px var(--mono)}
+.kr .acts{display:flex;gap:6px;font-size:12px;justify-content:flex-end}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+@media (max-width:900px){aside{display:none}.grid2{grid-template-columns:1fr}#inn{width:150px}}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><img src="/icon.png" alt=""><b><span>OSINT</span> Recon</b></div>
+  <button class="newbtn" id="newBtn" type="button">＋ Новый сбор</button>
+  <div class="side-h">История</div>
+  <div class="hist" id="hist"></div>
+  <div class="side-foot"><button class="side-btn" id="settingsBtn" type="button">⚙  Настройки</button></div>
+</aside>
+
+<div class="main" id="mainScroll">
+ <div class="wrap">
+  <form class="search" id="scanForm" autocomplete="off">
+    <input type="text" id="domain" placeholder="домен, например example.ru" spellcheck="false">
+    <input type="text" id="inn" placeholder="ИНН или название (опц.)">
+    <button class="go" id="scanBtn" type="submit">Собрать</button>
+  </form>
+  <div class="toggles">
+    <div class="seg" id="modeSeg">
+      <button type="button" data-mode="fast" title="Быстрые источники, лимит 30 с на сбор">Быстро <span>~1 мин</span></button>
+      <button type="button" data-mode="full" title="Все источники, архивы и мутации имён">Полно <span>~2 мин</span></button>
+    </div>
+    <label class="tg" title="HTTP, TLS-сертификаты и порты — запросы напрямую к хостам цели"><input type="checkbox" id="optActive"><i></i>Активные проверки</label>
+    <span class="warn-mini" id="activeWarn" hidden>только для своих ресурсов или с разрешения</span>
+  </div>
+  <div class="err" id="formErr" hidden></div>
+
+  <div class="empty-state" id="emptyState">
+    <img src="/icon.png" alt="">
+    <h2>Введите домен</h2>
+    <div>Субдомены, IP, находки, организация, утечки</div>
+  </div>
+
+  <section class="card sec" id="progressCard" hidden>
+    <div class="prog-top"><h2 id="progDomain"></h2><span class="st" id="progStatus"></span>
+      <button class="stop" id="cancelBtn" type="button">Остановить</button></div>
+    <div class="bar"><div id="barFill"></div></div>
+    <div class="live" id="live"></div>
+    <div class="recent-hosts" id="recentHosts"></div>
+    <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">Шаги</summary><div id="chips"></div></details>
+  </section>
+
+  <section id="result" hidden>
+    <div class="rhead">
+      <h1 id="resDomain"></h1><span class="risk" id="resRisk"></span>
+      <span class="rmeta" id="resMeta"></span>
+      <span class="sp"></span>
+      <a class="btn pri" id="reportBtn" target="_blank" rel="noopener">Отчёт ↗</a>
+      <details class="menu" id="expMenu"><summary class="btn">Экспорт ▾</summary><div class="menu-list" id="expList"></div></details>
+    </div>
+    <div id="resBanner"></div>
+    <nav class="tabs" id="tabs"></nav>
+    <div class="tab" id="tab-summary"></div>
+    <div class="tab" id="tab-findings"></div>
+    <div class="tab" id="tab-hosts">
+      <div class="toolbar">
+        <input type="text" id="hostFilter" placeholder="Поиск: имя, IP, CNAME, технология">
+        <label class="chk"><input type="checkbox" id="onlyAlive" checked>живые</label>
+        <label class="chk"><input type="checkbox" id="hideWild" checked>без wildcard</label>
+        <select id="srcFilter"><option value="">все источники</option></select>
+        <span class="cnt" id="hostCount"></span>
+      </div>
+      <div class="tw"><table id="hostTable"></table></div>
+    </div>
+    <div class="tab" id="tab-web">
+      <div class="toolbar"><input type="text" id="webFilter" placeholder="Поиск: URL, заголовок, технология"><span class="cnt" id="webCount"></span></div>
+      <div class="tw"><table id="webTable"></table></div>
+    </div>
+    <div class="tab" id="tab-ips">
+      <div class="toolbar">
+        <input type="text" id="ipFilter" placeholder="Поиск: IP, организация, AS, хост">
+        <label class="chk"><input type="checkbox" id="onlyCurrent" checked>текущие</label>
+        <label class="chk"><input type="checkbox" id="onlyPorts">с портами</label>
+        <span class="cnt" id="ipCount"></span>
+      </div>
+      <div class="tw"><table id="ipTable"></table></div>
+    </div>
+    <div class="tab" id="tab-org"></div>
+    <div class="tab" id="tab-dns"></div>
+    <div class="tab" id="tab-leaks"></div>
+    <div class="tab" id="tab-related"></div>
+    <div class="tab" id="tab-sources"></div>
+  </section>
+ </div>
+</div>
+
+<div class="modal-bg" id="settingsModal" hidden>
+  <div class="modal">
+    <div class="mh"><h2>Настройки</h2><button class="x" type="button" id="settingsClose">✕</button></div>
+    <div class="mb">
+      <h3>API-ключи</h3>
+      <div id="keyRows"></div>
+      <h3>Сбор</h3>
+      <div class="row" style="margin-bottom:10px">
+        <span class="small muted" style="width:150px">DNS-резолверы</span>
+        <select id="dnsMode" style="flex:1">
+          <option value="public">Публичные</option>
+          <option value="system">Системные</option>
+        </select>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="small muted" style="width:150px">Режим по умолчанию</span>
+        <select id="defMode" style="flex:1"><option value="fast">Быстро (~1 мин)</option><option value="full">Полно (~2 мин)</option></select>
+      </div>
+      <div class="toggles" style="margin:0">
+        <label class="tg"><input type="checkbox" id="defBrute"><i></i>Перебор DNS</label>
+        <label class="tg"><input type="checkbox" id="defActive"><i></i>Активные проверки</label>
+      </div>
+      <div class="small muted" id="dataDir" style="margin-top:12px"></div>
+    </div>
+    <div class="mf"><span class="small muted" id="settingsMsg"></span><button class="go" type="button" id="settingsSave">Сохранить</button></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+let currentId = null, pollTimer = null, R = null, findSev = '';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => (n ?? 0).toLocaleString('ru-RU');
+const fmtMoney = v => (v == null ? '—' : `${fmt(v)} тыс. ₽`);
+const SEV = {critical:'Критично', high:'Высокий', medium:'Средний', low:'Низкий', info:'Инфо'};
+const SEV_COLOR = {critical:'var(--crit)', high:'var(--high)', medium:'var(--med)', low:'var(--low)', info:'var(--info)'};
+const PORT_SEV = {23:'high',111:'high',135:'high',139:'high',389:'high',445:'high',873:'high',1433:'high',1521:'high',2049:'high',2375:'critical',2376:'high',2379:'critical',3306:'high',3389:'high',5432:'high',5900:'high',5985:'high',5986:'high',6379:'critical',9092:'high',9200:'critical',9300:'high',10250:'critical',11211:'high',27017:'critical',21:'medium',161:'medium',636:'medium',1080:'medium',1723:'medium',2082:'medium',2083:'medium',3128:'medium',4848:'medium',5601:'medium',5672:'medium',6443:'medium',7001:'medium',9090:'medium',10000:'medium',15672:'medium',50000:'medium'};
+const bs = (arr, cls = '') => (arr || []).map(x => `<span class="b ${cls}">${esc(x)}</span>`).join('');
+const localTime = iso => { const d = new Date(iso || ''); return isNaN(d) ? '' : d.toLocaleString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}); };
+const ext = (url, text) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(text ?? url)}</a>`;
+const table = (head, rows, empty = 'Нет данных') => `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.length ? rows.join('') : `<tr><td colspan="${head.length}" class="empty">${empty}</td></tr>`}</tbody></table>`;
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || ('HTTP ' + r.status)); }
+  return r.json();
+}
+function view(mode) {  // empty | progress | result
+  $('#emptyState').hidden = mode !== 'empty';
+  $('#progressCard').hidden = mode !== 'progress';
+  $('#result').hidden = mode !== 'result';
+}
+
+// ---------- запуск ----------
+$('#optActive').addEventListener('change', e => $('#activeWarn').hidden = !e.target.checked);
+$('#scanForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const d = $('#domain').value.trim();
+  $('#formErr').hidden = true;
+  if (!d) { $('#domain').focus(); return; }
+  startScan(d, $('#inn').value.trim());
+});
+function showErr(t) { $('#formErr').textContent = t; $('#formErr').hidden = false; }
+$('#newBtn').addEventListener('click', () => {
+  currentId = null; clearTimeout(pollTimer);
+  $('#domain').value = ''; $('#inn').value = '';
+  view('empty'); markHist(); $('#domain').focus();
+});
+
+async function startScan(domain, hint = '') {
+  const btn = $('#scanBtn');
+  btn.disabled = true;
+  try {
+    const {id, domain: d} = await api('/api/scan', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({domain, org_hint: hint || null, active: $('#optActive').checked, mode})});
+    currentId = id;
+    view('progress');
+    $('#chips').innerHTML = ''; $('#barFill').style.width = '0'; $('#live').innerHTML = ''; $('#recentHosts').innerHTML = '';
+    $('#progDomain').textContent = d;
+    $('#progStatus').textContent = 'запуск…';
+    clearTimeout(pollTimer);
+    poll(id); loadRecent();
+  } catch (e) { showErr(e.message); }
+  finally { btn.disabled = false; }
+}
+function scanThat(domain, hint = '') {
+  $('#domain').value = domain; $('#inn').value = hint || '';
+  $('#mainScroll').scrollTo({top: 0, behavior: 'smooth'});
+  startScan(domain, hint);
+}
+$('#cancelBtn').addEventListener('click', async () => {
+  if (!currentId) return;
+  $('#cancelBtn').disabled = true;
+  try { await api(`/api/scan/${encodeURIComponent(currentId)}/cancel`, {method: 'POST'}); } catch (e) {}
+  setTimeout(() => $('#cancelBtn').disabled = false, 1500);
+});
+
+async function poll(id) {
+  if (id !== currentId) return;
+  try {
+    const st = await api(`/api/scan/${encodeURIComponent(id)}?light=true`);
+    if (id !== currentId) return;
+    if (st.status === 'running') { renderProgress(st); pollTimer = setTimeout(() => poll(id), 1500); return; }
+    const full = await api(`/api/scan/${encodeURIComponent(id)}`);
+    if (!full.result) { $('#progStatus').textContent = 'Ошибка: ' + (full.error || 'неизвестная'); return; }
+    R = full.result; renderResult(); loadRecent();
+  } catch (e) {
+    $('#progStatus').textContent = 'нет связи: ' + e.message;
+    pollTimer = setTimeout(() => poll(id), 3000);
+  }
+}
+
+function renderProgress(st) {
+  const all = st.progress || [];
+  const act = all.filter(p => p.status !== 'skipped');
+  const done = act.filter(p => p.status === 'ok' || p.status === 'error').length;
+  const f = st.found || {};
+  const sec = f.elapsed || 0;
+  $('#progStatus').textContent = `${st.phase || 'Сбор'} · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')} · ${st.mode === 'full' ? 'полный' : 'быстрый'}`;
+  $('#barFill').style.width = (act.length ? Math.round(done / act.length * 100) : 0) + '%';
+  $('#live').innerHTML = `<div><b>${fmt(f.hosts)}</b><span>имён</span></div><div><b>${fmt(f.alive)}</b><span>живых</span></div><div><b>${fmt(f.ips)}</b><span>IP</span></div><div><b>${done}/${act.length}</b><span>шагов</span></div>`;
+  $('#recentHosts').innerHTML = (f.recent || []).map(n => `<span class="b ok">${esc(n)}</span>`).join('');
+  const groups = {};
+  all.forEach(p => (groups[p.group] = groups[p.group] || []).push(p));
+  $('#chips').innerHTML = Object.entries(groups).map(([g, list]) => `<div class="pg-h">${esc(g)}</div><div class="pg">` + list.map(p => {
+    const ic = p.status === 'running' ? '<span class="spin"></span>' : ({ok: '✓', error: '✕', skipped: '–', pending: '·'}[p.status] || '');
+    const c = p.status === 'ok' ? fmt(p.count) : (p.elapsed != null && p.status === 'error' ? 'ошибка' : '');
+    return `<div class="step ${p.status}" title="${esc(p.desc)}${p.error ? '\n' + esc(p.error) : ''}"><span class="ic ${p.status}">${ic}</span><span class="n">${esc(p.name)}</span><span class="c">${c}</span></div>`;
+  }).join('') + '</div>').join('');
+}
+
+// ---------- результат ----------
+const TABS = [['summary', 'Сводка'], ['findings', 'Находки'], ['hosts', 'Хосты'], ['web', 'Веб'], ['ips', 'IP'], ['org', 'Организация'], ['dns', 'Почта и DNS'], ['leaks', 'Утечки'], ['related', 'Связи'], ['sources', 'Источники']];
+let activeTab = 'summary';
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) showTab(b.dataset.tab); });
+function showTab(t) {
+  activeTab = t;
+  $$('#tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === t));
+  $$('.tab').forEach(x => x.classList.toggle('on', x.id === 'tab-' + t));
+}
+document.addEventListener('click', e => { const m = $('#expMenu'); if (m.open && !m.contains(e.target)) m.open = false; });
+
+function renderResult() {
+  const r = R, s = r.summary || {};
+  view('result'); markHist();
+  $('#resDomain').textContent = r.domain_unicode && r.domain_unicode !== r.domain ? `${r.domain_unicode}` : r.domain;
+  $('#resRisk').className = 'risk ' + (s.risk || 'info');
+  $('#resRisk').textContent = s.risk === 'info' ? 'без рисков' : 'риск: ' + SEV[s.risk || 'info'].toLowerCase();
+  const o = r.options || {};
+  $('#resMeta').textContent = `${localTime(r.started_at)} · ${Math.round(r.duration_sec || 0)} с · ${o.mode === 'fast' ? 'быстрый' : 'полный'}${o.active ? ' · активные' : ''}${r.org_hint ? ' · ' + r.org_hint : ''}`;
+  const ex = f => `/api/scan/${encodeURIComponent(r.id)}/export?format=${f}`;
+  $('#reportBtn').href = ex('html_view');
+  $('#expList').innerHTML = `<a href="${ex('xlsx')}">Excel (.xlsx)</a><a href="${ex('html')}">Отчёт (.html)</a><a href="${ex('json')}">JSON</a><hr>
+    <a href="${ex('hosts_txt')}">Живые хосты (.txt)</a><a href="${ex('ips_txt')}">IP (.txt)</a><a href="${ex('hosts_csv')}">Хосты (.csv)</a><a href="${ex('ips_csv')}">IP (.csv)</a><hr>
+    <a href="#" id="copyAlive">Копировать живые хосты</a>`;
+  $('#copyAlive').addEventListener('click', e => {
+    e.preventDefault();
+    navigator.clipboard.writeText((R.hosts || []).filter(h => h.alive).map(h => h.name).join('\n'))
+      .then(() => { e.target.textContent = 'Скопировано ✓'; setTimeout(() => { $('#expMenu').open = false; e.target.textContent = 'Копировать живые хосты'; }, 900); });
+  });
+  const fc = s.findings || {};
+  const counts = {findings: Object.values(fc).reduce((a, b) => a + b, 0), hosts: s.alive, web: (r.web || []).length, ips: s.unique_ips, related: (r.related_domains || []).length};
+  $('#tabs').innerHTML = TABS.filter(([k]) => k !== 'web' || (r.web || []).length).map(([k, t]) =>
+    `<button data-tab="${k}" type="button">${t}${counts[k] ? `<span class="k">${fmt(counts[k])}</span>` : ''}</button>`).join('');
+  $('#resBanner').innerHTML = r.partial ? '<div class="partial">Сбор прерван — результат неполный</div>' : '';
+  if (!(r.web || []).length && activeTab === 'web') activeTab = 'summary';
+  showTab(activeTab);
+  findSev = '';
+  renderSummary(); renderFindings(); fillSrcFilter(); renderHosts(); renderWeb(); renderIps();
+  renderOrg(); renderDns(); renderLeaks(); renderRelated(); renderSources();
+}
+
+const kpi = (v, l, bad = false) => `<div class="kpi ${bad ? 'bad' : ''}"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`;
+
+function sevLegend(fc, sel, attr) {
+  return Object.keys(SEV).map(k => `<span class="lg ${sel === k ? 'on' : ''}" data-${attr}="${k}"><span class="d ${k}"></span>${SEV[k]} <b>${fmt(fc[k])}</b></span>`).join('');
+}
+
+function renderSummary() {
+  const r = R, s = r.summary || {}, fc = s.findings || {}, act = (r.options || {}).active;
+  const total = Object.values(fc).reduce((a, b) => a + b, 0) || 1;
+  let h = `<div class="kpis">
+    ${kpi(fmt(s.subdomains), 'субдоменов')}${kpi(fmt(s.alive), 'живых хостов')}${kpi(fmt(s.unique_ips), 'IP-адресов')}
+    ${kpi(act ? fmt(s.web) : '—', 'веб-сервисов')}${kpi(fmt(s.open_ports), 'открытых портов')}
+    ${kpi(fmt(s.takeover), 'захват поддоменов', s.takeover > 0)}${kpi(fmt(s.leaked_employees), 'утечки сотрудников', s.leaked_employees > 0)}${kpi(fmt(s.leaked_users), 'утечки пользователей')}
+  </div>
+  <h3>Находки</h3>
+  <div class="sevbar">${Object.keys(SEV).map(k => fc[k] ? `<div style="width:${fc[k] / total * 100}%;background:${SEV_COLOR[k]}"></div>` : '').join('')}</div>
+  <div class="legend">${sevLegend(fc, '', 'gosev')}</div>`;
+  const top = (r.findings || []).filter(f => f.sev !== 'info').slice(0, 6);
+  if (top.length) h += `<div class="fl" style="margin-top:12px">${top.map(f => findingHtml(f, 6)).join('')}</div>`;
+  const own = r.asn || [];
+  if (own.length) h += `<h3>Сети организации</h3><div class="tw short">${table(['AS', 'Название', 'Префиксов', 'Префиксы'],
+    own.map(a => `<tr><td class="mono">${esc(a.asn)}</td><td>${esc(a.name)}</td><td class="num">${fmt(a.prefixes.length)}</td><td class="mono small">${esc(a.prefixes.slice(0, 12).join(', '))}${a.prefixes.length > 12 ? ' …' : ''}</td></tr>`))}</div>`;
+  h += `<div class="grid2"><div><h3>Провайдеры</h3><div class="tw short">${table(['Организация', 'Страна', 'IP', 'Хостов'],
+      (r.orgs || []).map(o => `<tr><td>${esc(o.org)}${o.rf_hoster ? ' <span class="b rf">РФ</span>' : ''}${o.cdn ? ' <span class="b cdn">CDN</span>' : ''}</td><td>${esc(o.country || '—')}</td><td class="num">${fmt(o.ip_count)}</td><td class="num">${fmt(o.host_count)}</td></tr>`))}</div></div>
+    <div><h3>Автономные системы</h3><div class="tw short">${table(['AS', 'Организация', 'IP', 'Хостов'],
+      (r.as_summary || []).map(a => `<tr><td class="mono">${esc(a.as)}</td><td>${esc(a.org)}</td><td class="num">${fmt(a.ip_count)}</td><td class="num">${fmt(a.host_count)}</td></tr>`))}</div></div></div>`;
+  $('#tab-summary').innerHTML = h;
+}
+$('#tab-summary').addEventListener('click', e => {
+  const b = e.target.closest('[data-gosev]');
+  if (b) { findSev = b.dataset.gosev; renderFindings(); showTab('findings'); }
+});
+
+function findingHtml(f, lim = 300) {
+  const items = (f.items || []).slice(0, lim).map(i => `<li>${esc(i)}</li>`).join('');
+  const more = f.count > lim ? `<li class="muted" style="list-style:none">… ещё ${fmt(f.count - lim)}</li>` : '';
+  const body = (f.detail ? `<div>${esc(f.detail)}</div>` : '') + (f.rec ? `<div class="rec">→ ${esc(f.rec)}</div>` : '') + (items ? `<ul>${items}${more}</ul>` : '');
+  return `<details class="fi"><summary><span class="chev">›</span><span class="pill ${f.sev}">${SEV[f.sev]}</span><span class="t">${esc(f.title)}</span><span class="cat">${esc(f.cat)}</span><span class="cnt">${f.count ? fmt(f.count) : ''}</span></summary>${body ? `<div class="body">${body}</div>` : ''}</details>`;
+}
+function renderFindings() {
+  const all = R.findings || [], fc = (R.summary || {}).findings || {};
+  const list = findSev ? all.filter(f => f.sev === findSev) : all;
+  $('#tab-findings').innerHTML = `<div class="legend" style="margin-bottom:12px"><span class="lg ${findSev ? '' : 'on'}" data-fsev="">Все <b>${fmt(all.length)}</b></span>${sevLegend(fc, findSev, 'fsev')}</div>` +
+    (list.length ? `<div class="fl">${list.map(f => findingHtml(f)).join('')}</div>` : '<div class="empty">Нет находок</div>');
+}
+$('#tab-findings').addEventListener('click', e => {
+  const b = e.target.closest('[data-fsev]');
+  if (b) { findSev = b.dataset.fsev; renderFindings(); }
+});
+
+// ---------- хосты ----------
+function fillSrcFilter() {
+  const srcs = new Set();
+  (R.hosts || []).forEach(h => h.sources.forEach(s => srcs.add(s)));
+  $('#srcFilter').innerHTML = '<option value="">все источники</option>' + [...srcs].sort().map(s => `<option>${esc(s)}</option>`).join('');
+}
+const ST = {ok: ['живой', 'ok'], nxdomain: ['нет', ''], noanswer: ['нет A', ''], dangling: ['висячий CNAME', 'bad'], error: ['ошибка', 'warn'], unchecked: ['—', '']};
+function renderHosts() {
+  if (!R) return;
+  const q = $('#hostFilter').value.trim().toLowerCase(), src = $('#srcFilter').value;
+  let hosts = R.hosts || [];
+  const total = hosts.length;
+  if ($('#onlyAlive').checked) hosts = hosts.filter(h => h.alive);
+  if ($('#hideWild').checked) hosts = hosts.filter(h => !h.wildcard);
+  if (src) hosts = hosts.filter(h => h.sources.includes(src));
+  if (q) hosts = hosts.filter(h => h.name.includes(q) || h.ips.some(i => i.includes(q)) || h.cname.some(c => c.includes(q)) ||
+    (h.http && ((h.http.title || '').toLowerCase().includes(q) || h.http.tech.some(t => t.toLowerCase().includes(q)))));
+  $('#hostCount').textContent = `${fmt(hosts.length)} из ${fmt(total)}`;
+  const tk = new Set((R.takeover || []).map(t => t.host));
+  $('#hostTable').innerHTML = table(['Хост', 'DNS', 'IP', 'CNAME', 'HTTP', 'Источники'], hosts.slice(0, 3000).map(h => {
+    const [st, cls] = ST[h.status] || [h.status, ''];
+    const http = h.http ? `<span class="b ${h.http.status < 400 ? 'ok' : 'warn'}">${esc(h.http.status)}</span> ${ext(h.http.url, (h.http.title || h.http.url).slice(0, 60))}` : '';
+    return `<tr><td class="mono">${h.alive ? ext('http://' + h.name, h.name) : esc(h.name)}${h.dev ? ' <span class="b warn">dev</span>' : ''}${tk.has(h.name) ? ' <span class="b bad">takeover?</span>' : ''}</td>
+      <td><span class="b ${cls}">${st}</span>${h.wildcard ? '<span class="b">wildcard</span>' : ''}</td>
+      <td class="mono small">${esc(h.current_ips.slice(0, 4).join(', '))}${h.current_ips.length > 4 ? ' …' : ''}${!h.current_ips.length && h.ips.length ? `<span class="muted">ранее ${esc(h.ips.slice(0, 2).join(', '))}</span>` : ''}</td>
+      <td class="mono small">${esc(h.cname.slice(-1)[0] || '')}</td><td class="small">${http}</td><td>${bs(h.sources)}</td></tr>`;
+  }), 'Ничего — снимите фильтры');
+}
+['#hostFilter', '#onlyAlive', '#hideWild', '#srcFilter'].forEach(s => $(s).addEventListener(s === '#hostFilter' ? 'input' : 'change', renderHosts));
+
+// ---------- веб ----------
+function renderWeb() {
+  const all = R.web || [], q = $('#webFilter').value.trim().toLowerCase();
+  const list = q ? all.filter(w => (w.final_url + ' ' + w.title + ' ' + w.server + ' ' + w.tech.join(' ')).toLowerCase().includes(q)) : all;
+  $('#webCount').textContent = `${fmt(list.length)} из ${fmt(all.length)}`;
+  $('#webTable').innerHTML = table(['URL', 'Код', 'Заголовок', 'Сервер', 'Технологии', 'TLS'], list.map(w => {
+    const t = w.tls;
+    const tls = t ? `<span class="b ${t.days_left < 0 ? 'bad' : t.days_left < 21 ? 'warn' : 'ok'}">${t.days_left < 0 ? 'истёк' : t.days_left + ' дн.'}</span>${t.self_signed ? '<span class="b bad">самоподп.</span>' : ''}${t.hostname_match === false ? '<span class="b warn">чужое имя</span>' : ''}<div class="muted small">${esc(t.issuer_org || t.issuer_cn || '')}</div>` : (w.scheme === 'http' ? '<span class="b warn">без HTTPS</span>' : '');
+    const tech = w.tech.map(x => `<span class="b t-${esc((w.tech_cat || {})[x] || '')}">${esc(x)}</span>`).join('');
+    return `<tr><td class="mono small">${ext(w.final_url)}</td><td><span class="b ${w.status < 400 ? 'ok' : 'warn'}">${esc(w.status)}</span></td><td>${esc(w.title)}</td><td class="mono small">${esc(w.server)}</td><td>${tech}</td><td>${tls}</td></tr>`;
+  }));
+}
+$('#webFilter').addEventListener('input', renderWeb);
+
+// ---------- IP ----------
+function renderIps() {
+  const q = $('#ipFilter').value.trim().toLowerCase();
+  let list = R.ips || [];
+  const total = list.length;
+  if ($('#onlyCurrent').checked) list = list.filter(i => i.current);
+  if ($('#onlyPorts').checked) list = list.filter(i => (i.ports || []).length);
+  if (q) list = list.filter(i => [i.ip, i.org, i.isp, i.as, i.reverse, ...(i.hosts || [])].join(' ').toLowerCase().includes(q));
+  $('#ipCount').textContent = `${fmt(list.length)} из ${fmt(total)}`;
+  $('#ipTable').innerHTML = table(['IP', 'Страна', 'Организация', 'AS', 'Порты', 'CVE', 'Хосты'], list.slice(0, 3000).map(i => {
+    const ports = (i.ports || []).map(p => `<span class="b p-${PORT_SEV[p] || ''}">${p}</span>`).join('');
+    const fl = [i.cdn && '<span class="b cdn">CDN</span>', i.private && '<span class="b warn">частный</span>', !i.current && '<span class="b">старый</span>'].filter(Boolean).join('');
+    const v = i.vulns || [];
+    return `<tr><td class="mono">${esc(i.ip)} ${fl}${i.reverse ? `<div class="muted small">${esc(i.reverse)}</div>` : ''}</td><td>${esc(i.countryCode || i.country || '—')}</td>
+      <td>${esc(i.org || i.isp || '—')}</td><td class="mono small">${esc(i.as || i.asname || '—')}</td><td>${ports}</td>
+      <td title="${esc(v.join(', '))}">${v.length ? `<span class="b bad">${v.length} CVE</span>` : ''}</td>
+      <td class="mono small">${esc((i.hosts || []).slice(0, 2).join(', '))}${i.host_count > 2 ? ` +${i.host_count - 2}` : ''}</td></tr>`;
+  }));
+}
+['#ipFilter', '#onlyCurrent', '#onlyPorts'].forEach(s => $(s).addEventListener(s === '#ipFilter' ? 'input' : 'change', renderIps));
+
+// ---------- организация ----------
+function orgLinks(o) {
+  if (!o || !o.inn) return '';
+  const i = encodeURIComponent(o.inn);
+  return `<div class="links">${[['checko', `https://checko.ru/search?query=${i}`], ['rusprofile', `https://www.rusprofile.ru/search?query=${i}`],
+    ['zachestnyibiznes', `https://zachestnyibiznes.ru/search?query=${i}`], ['list-org', `https://www.list-org.com/search?val=${i}`],
+    ['ГИР БО', `https://bo.nalog.gov.ru/search?query=${i}`], ['Госзакупки', `https://zakupki.gov.ru/epz/order/extendedsearch/results.html?searchString=${i}`],
+    ['Федресурс', `https://fedresurs.ru/search/entity?code=${i}`]].map(([t, u]) => ext(u, t + ' ↗')).join('')}</div>`;
+}
+const orgRow = o => `<tr><td>${esc(o.name || '—')}</td><td class="mono">${esc(o.inn || '—')}</td><td class="small">${esc(o.address || '—')}</td>
+  <td><span class="b ${/Действ/.test(o.status || '') ? 'ok' : (o.status ? 'bad' : '')}">${esc(o.status || '—')}</span></td>
+  <td class="num">${fmtMoney(o.revenue)}</td><td>${o.inn ? `<button class="mini" type="button" data-rescan="${esc(o.inn)}" title="Повторить сбор с этим ИНН">↻</button>` : ''}</td></tr>`;
+const ORG_HEAD = ['Наименование', 'ИНН', 'Адрес', 'Статус', 'Выручка', ''];
+function renderOrg() {
+  const o = R.org || {}, c = o.org, site = R.site || {};
+  const p = [];
+  if (c) {
+    const fr = o.fedresurs || {};
+    const rows = [['Наименование', `<b>${esc(c.name || '—')}</b>`], ['ИНН / ОГРН', `<span class="mono">${esc(c.inn || '—')} / ${esc(c.ogrn || '—')}</span>`],
+      ['Адрес', esc(c.address || '—')], c.director && ['Руководитель', esc(c.director)], ['ОКВЭД', esc(c.okved || '—')],
+      ['Статус', esc(c.status || '—')], ['Выручка', `${fmtMoney(c.revenue)}${c.bfo_period ? ` <span class="muted">(${esc(c.bfo_period)})</span>` : ''}`],
+      ['Федресурс', fr.error ? '<span class="muted">недоступен</span>' : fmt(fr.total)], ['Основание', esc(o.basis || '—')]].filter(Boolean);
+    p.push(`<div class="kv">${rows.map(([k, v]) => `<div>${k}</div><div>${v}</div>`).join('')}</div>${orgLinks(c)}`);
+  }
+  if ((o.notes || []).length && !c) p.push(`<div class="note-box">${o.notes.map(esc).join('<br>')}</div>`);
+  if ((o.brand_candidates || []).length) p.push(`<h3>Кандидаты по названию домена</h3><div class="tw short">${table(ORG_HEAD, o.brand_candidates.map(orgRow))}</div>`);
+  if ((o.affiliates || []).length) p.push(`<h3>Связанные юрлица · ${o.affiliates.length}</h3><div class="tw short">${table(ORG_HEAD, o.affiliates.map(orgRow))}</div>`);
+  if ((o.candidates || []).length) p.push(`<h3>ЕГРЮЛ</h3><div class="tw short">${table(['Наименование', 'ИНН', 'ОГРН', 'Регион', 'Руководитель'],
+    o.candidates.map(x => `<tr><td>${esc(x.short_name || x.name || '—')}</td><td class="mono">${esc(x.inn || '—')}</td><td class="mono">${esc(x.ogrn || '—')}</td><td>${esc(x.region || '—')}</td><td class="small">${esc(x.director || '—')}</td></tr>`))}</div>`);
+  if (site.checked) {
+    p.push(`<h3>С сайта</h3><div class="kv">
+      <div>ИНН</div><div class="mono">${(site.inns || []).map(x => `${esc(x.inn)} <button class="mini" type="button" data-rescan="${esc(x.inn)}">↻</button>`).join(' ') || '—'}</div>
+      <div>Юрлица</div><div>${esc((site.orgs || []).join('; ') || '—')}</div>
+      <div>E-mail</div><div class="mono">${esc((site.emails || []).join(', ') || '—')}</div>
+      <div>Телефоны</div><div class="mono">${esc((site.phones || []).join(', ') || '—')}</div></div>`);
+  }
+  $('#tab-org').innerHTML = p.join('') || '<div class="empty">Организация не определена — укажите ИНН при запуске</div>';
+}
+$('#tab-org').addEventListener('click', e => { const b = e.target.closest('[data-rescan]'); if (b) scanThat(R.domain, b.dataset.rescan); });
+
+// ---------- почта и DNS ----------
+function renderDns() {
+  const r = R, em = r.email || {}, w = r.whois || {}, ax = r.axfr || {};
+  const yn = (v, t = 'есть', f = 'нет') => `<span class="b ${v ? 'ok' : 'bad'}">${v ? t : f}</span>`;
+  const mail = `<div class="kv">
+    <div>SPF</div><div>${em.spf?.record ? `<span class="mono small">${esc(em.spf.record)}</span>` : yn(false)}</div>
+    <div>DMARC</div><div>${em.dmarc?.record ? `<span class="b ${em.dmarc.p === 'reject' ? 'ok' : em.dmarc.p === 'quarantine' ? 'warn' : 'bad'}">p=${esc(em.dmarc.p || '—')}</span> <span class="mono small">${esc(em.dmarc.record)}</span>` : yn(false)}</div>
+    <div>DKIM</div><div>${(em.dkim_selectors || []).length ? bs(em.dkim_selectors, 'ok') : '<span class="muted">не найден</span>'}</div>
+    <div>MTA-STS · TLS-RPT</div><div>${yn(em.mta_sts)} ${yn(em.tls_rpt)}</div>
+    <div>AXFR</div><div>${ax.tested ? ((ax.vulnerable || []).length ? '<span class="b bad">разрешён</span>' : '<span class="b ok">запрещён</span>') : '—'}</div>
+    <div>Сервисы</div><div>${(r.services || []).map(s => `<span class="b rf" title="${esc(s.record)}">${esc(s.service)}</span>`).join('') || '—'}</div></div>`;
+  const dom = `<div class="kv">${[['Регистратор', w.registrar], ['Регистрант', w.registrant_org || w.registrant_inn], ['Создан', w.created], ['Истекает', w.expires],
+    ['NS', (w.nameservers || []).join(', ')], ['Резолверы', (r.resolvers || []).join(', ')]].map(([k, v]) => `<div>${k}</div><div>${esc(v || '—')}</div>`).join('')}</div>`;
+  let h = `<div class="grid2"><div><h3>Почта</h3>${mail}</div><div><h3>Домен</h3>${dom}</div></div>`;
+  if ((em.issues || []).length) h += `<h3>Замечания</h3><div class="fl">${em.issues.map(i => `<div class="fi"><summary style="cursor:default"><span class="pill ${i.sev}">${SEV[i.sev]}</span><span class="t">${esc(i.text)}</span></summary></div>`).join('')}</div>`;
+  if ((r.wildcard || []).length) h += `<div class="note-box">Wildcard DNS → ${esc(r.wildcard.join(', '))}</div>`;
+  h += `<h3>Записи</h3><div class="tw">${table(['Тип', 'Значение'], Object.keys(r.dns || {}).map(k => `<tr><td class="mono">${esc(k)}</td><td class="mono small">${(r.dns[k] || []).map(v => `<div>${esc(v)}</div>`).join('')}</td></tr>`))}</div>`;
+  $('#tab-dns').innerHTML = h;
+}
+
+// ---------- утечки ----------
+function renderLeaks() {
+  const l = R.leaks;
+  if (!l) { $('#tab-leaks').innerHTML = '<div class="empty">Нет данных</div>'; return; }
+  const urls = list => `<div class="tw short">${table(['URL', 'Раз'], list.map(u => `<tr><td class="mono small">${esc(u.url)}</td><td class="num">${fmt(u.count)}</td></tr>`))}</div>`;
+  const pw = p => p && p.totalPass ? ['too_weak', 'weak', 'medium', 'strong'].map(k => `<span class="b">${({too_weak: 'очень слабые', weak: 'слабые', medium: 'средние', strong: 'сильные'})[k]} ${p[k]?.perc ?? 0}%</span>`).join('') : '';
+  $('#tab-leaks').innerHTML = `<div class="kpis">${kpi(fmt(l.employees), 'сотрудников', l.employees > 0)}${kpi(fmt(l.users), 'пользователей')}${kpi(fmt(l.third_parties), 'сторонних')}${kpi(l.last_employee || '—', 'последний (сотр.)')}${kpi(l.last_user || '—', 'последний (польз.)')}</div>
+    <div class="grid2"><div><h3>Сотрудники</h3>${pw(l.employee_passwords)}${urls(l.employee_urls || [])}</div><div><h3>Пользователи</h3>${pw(l.user_passwords)}${urls(l.user_urls || [])}</div></div>
+    ${Object.keys(l.families || {}).length ? `<h3>Стилеры</h3>${Object.entries(l.families).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="b">${esc(k)} ${fmt(v)}</span>`).join('')}` : ''}
+    <div class="muted small" style="margin-top:14px">Источник: Hudson Rock</div>`;
+}
+
+function renderRelated() {
+  const rows = R.related_domains || [];
+  $('#tab-related').innerHTML = `<div class="tw">${table(['Домен', 'Через', ''], rows.map(r => `<tr><td class="mono">${esc(r.domain)}</td><td>${bs(r.via)}</td><td class="num"><button class="mini" type="button" data-scan="${esc(r.domain)}">Сканировать</button></td></tr>`))}</div>`;
+}
+$('#tab-related').addEventListener('click', e => { const b = e.target.closest('[data-scan]'); if (b) scanThat(b.dataset.scan); });
+
+function renderSources() {
+  const icon = {ok: '<span class="ic ok">✓</span>', error: '<span class="ic error">✕</span>', skipped: '<span class="ic skipped">–</span>'};
+  $('#tab-sources').innerHTML = `<div class="tw">${table(['', 'Шаг', 'Назначение', 'Записей', 'Сек', 'Комментарий'], (R.sources || []).map(p =>
+    `<tr><td>${icon[p.status] || ''}</td><td class="mono">${esc(p.name)}</td><td class="small">${esc(p.desc || '')}</td><td class="num">${p.status === 'ok' ? fmt(p.count) : ''}</td><td class="num">${p.elapsed ?? ''}</td><td class="small muted">${esc(p.error || '')}</td></tr>`))}</div>`;
+}
+
+// ---------- история ----------
+function markHist() { $$('#hist .hi').forEach(x => x.classList.toggle('on', x.dataset.id === currentId)); }
+async function loadRecent() {
+  try {
+    const items = await api('/api/scans?limit=40');
+    $('#hist').innerHTML = items.length ? items.map(i => {
+      const s = i.summary || {};
+      const meta = i.status === 'running' ? 'идёт сбор…' : `${localTime(i.started_at)} · ${fmt(s.alive ?? s.subdomains)} хост.`;
+      return `<div class="hi" data-id="${esc(i.id)}"><span class="d ${i.status === 'running' ? 'low' : esc(s.risk || 'info')}"></span><div class="tx"><div class="nm">${esc(i.domain)}</div><div class="mt">${esc(meta)}</div></div>${i.status !== 'running' ? `<button class="del" type="button" data-del="${esc(i.id)}" title="Удалить">×</button>` : ''}</div>`;
+    }).join('') : '<div class="hist-empty">Пока пусто</div>';
+    markHist();
+  } catch (e) {}
+}
+$('#hist').addEventListener('click', async e => {
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    e.stopPropagation();
+    if (!confirm('Удалить из истории?')) return;
+    try { await api('/api/scan/' + encodeURIComponent(del.dataset.del), {method: 'DELETE'}); } catch (err) { alert(err.message); }
+    if (currentId === del.dataset.del) { currentId = null; view('empty'); }
+    loadRecent(); return;
+  }
+  const c = e.target.closest('[data-id]');
+  if (c) openScan(c.dataset.id);
+});
+async function openScan(id) {
+  currentId = id; clearTimeout(pollTimer); markHist();
+  try {
+    const st = await api('/api/scan/' + encodeURIComponent(id) + '?light=true');
+    if (st.status === 'running') { view('progress'); $('#progDomain').textContent = st.domain; poll(id); }
+    else { const full = await api('/api/scan/' + encodeURIComponent(id)); R = full.result; renderResult(); }
+  } catch (e) { showErr(e.message); }
+}
+
+// ---------- настройки ----------
+let settings = null, mode = 'fast';
+function setMode(m) { mode = m === 'full' ? 'full' : 'fast'; $$('#modeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode)); }
+$('#modeSeg').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (b) setMode(b.dataset.mode); });
+setMode('fast');
+async function loadSettings(applyDefaults = true) {
+  try {
+    settings = await api('/api/settings');
+    if (!applyDefaults) return;
+    setMode(settings.mode_default);
+    $('#optActive').checked = !!settings.active_default;
+    $('#activeWarn').hidden = !settings.active_default;
+  } catch (e) {}
+}
+$('#settingsBtn').addEventListener('click', async () => {
+  await loadSettings(false);
+  const s = settings || {keys: {}};
+  $('#keyRows').innerHTML = Object.entries(s.keys).map(([k, v]) => `<div class="kr"><div class="lb">${esc(v.label)}<small>${v.set ? esc(v.masked) : 'не задан'}</small></div>
+    <input type="password" data-key="${esc(k)}" placeholder="${v.set ? '••••••' : 'ключ'}" autocomplete="off">
+    <div class="acts">${v.set ? `<a href="#" data-clear="${esc(k)}" title="Удалить ключ">✕</a>` : ''}${ext(v.url, 'взять ↗')}</div></div>`).join('');
+  $('#dnsMode').value = s.dns_mode || 'public';
+  $('#defBrute').checked = !!s.brute_default; $('#defActive').checked = !!s.active_default;
+  $('#defMode').value = s.mode_default || 'fast';
+  try { const h = await api('/api/health'); $('#dataDir').textContent = 'Данные: ' + h.data_dir; } catch (e) {}
+  $('#settingsMsg').textContent = '';
+  $('#settingsModal').hidden = false;
+});
+$('#settingsClose').addEventListener('click', () => $('#settingsModal').hidden = true);
+$('#settingsModal').addEventListener('click', e => { if (e.target.id === 'settingsModal') $('#settingsModal').hidden = true; });
+$('#keyRows').addEventListener('click', e => {
+  const b = e.target.closest('[data-clear]');
+  if (!b) return;
+  e.preventDefault();
+  const inp = $(`input[data-key="${b.dataset.clear}"]`);
+  inp.value = ''; inp.dataset.clearKey = '1'; inp.placeholder = 'будет удалён';
+});
+$('#settingsSave').addEventListener('click', async () => {
+  const keys = {};
+  $$('#keyRows input[data-key]').forEach(i => {
+    if (i.value.trim()) keys[i.dataset.key] = i.value.trim();
+    else if (i.dataset.clearKey) keys[i.dataset.key] = '';
+  });
+  try {
+    settings = await api('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({keys, dns_mode: $('#dnsMode').value, brute_default: $('#defBrute').checked,
+        active_default: $('#defActive').checked, mode_default: $('#defMode').value})});
+    $('#settingsMsg').textContent = 'Сохранено ✓';
+    setMode(settings.mode_default); $('#optActive').checked = !!settings.active_default;
+    $('#activeWarn').hidden = !settings.active_default;
+    setTimeout(() => $('#settingsModal').hidden = true, 600);
+  } catch (e) { $('#settingsMsg').textContent = e.message; }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('#settingsModal').hidden = true; $('#expMenu').open = false; } });
+
+view('empty');
+loadSettings();
+loadRecent();
+</script>
+</body>
+</html>
